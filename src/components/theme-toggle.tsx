@@ -16,7 +16,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="sm"
-      className="h-9 w-9 p-0"
+      className="h-8 w-8 p-0 sm:h-9 sm:w-9"
       onClick={cycle}
       aria-label={`Current theme: ${theme}. Click to change.`}
     >
