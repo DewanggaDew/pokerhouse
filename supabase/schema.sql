@@ -73,3 +73,7 @@ create policy "Allow all on sessions" on sessions for all using (true) with chec
 create policy "Allow all on games" on games for all using (true) with check (true);
 create policy "Allow all on game_results" on game_results for all using (true) with check (true);
 create policy "Allow all on settlements" on settlements for all using (true) with check (true);
+
+-- Session photos live in a separate migration file so they can be added to
+-- existing databases without reapplying the whole schema. Run after this file:
+--   supabase/photos.sql

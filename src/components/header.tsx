@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
   { href: "/", label: "Sessions" },
+  { href: "/feed", label: "Feed" },
   { href: "/ledger", label: "Ledger" },
   { href: "/players", label: "Players" },
 ];
@@ -26,7 +27,7 @@ export function Header() {
               key={item.href}
               href={item.href}
               className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
                 pathname === item.href
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"

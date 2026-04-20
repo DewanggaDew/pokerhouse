@@ -2,7 +2,12 @@
 
 import { useEffect, useState, use } from "react";
 import { supabase } from "@/lib/supabase";
-import type { Session, Player, GameWithResults } from "@/lib/types";
+import type {
+  Session,
+  Player,
+  GameWithResults,
+  SessionPhotoWithPlayer,
+} from "@/lib/types";
 import {
   calculatePlayerNets,
   calculateSettlements,
@@ -12,6 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { SessionPhotos } from "@/components/session-photos";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -23,6 +29,7 @@ export default function SharePage({ params }: Props) {
   const [session, setSession] = useState<Session | null>(null);
   const [games, setGames] = useState<GameWithResults[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [photos, setPhotos] = useState<SessionPhotoWithPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -42,18 +49,25 @@ export default function SharePage({ params }: Props) {
 
       setSession(sessionData);
 
-      const [gamesRes, playersRes] = await Promise.all([
+      const [gamesRes, playersRes, photosRes] = await Promise.all([
         supabase
           .from("games")
           .select("*, game_results(*, player:players(*))")
           .eq("session_id", sessionData.id)
           .order("game_number"),
         supabase.from("players").select("*").order("name"),
+        supabase
+          .from("session_photos")
+          .select("*, player:players(*)")
+          .eq("session_id", sessionData.id)
+          .order("created_at", { ascending: true }),
       ]);
 
       if (gamesRes.data)
         setGames(gamesRes.data as unknown as GameWithResults[]);
       if (playersRes.data) setPlayers(playersRes.data);
+      if (photosRes.data)
+        setPhotos(photosRes.data as unknown as SessionPhotoWithPlayer[]);
       setLoading(false);
     }
 
@@ -239,6 +253,21 @@ export default function SharePage({ params }: Props) {
                 </Card>
               );
             })}
+          </div>
+        )}
+
+        {/* Photos */}
+        {photos.length > 0 && (
+          <div className="mt-6 space-y-3">
+            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+              Photos ({photos.length})
+            </h2>
+            <SessionPhotos
+              sessionId={session.id}
+              players={players}
+              photos={photos}
+              readOnly
+            />
           </div>
         )}
 

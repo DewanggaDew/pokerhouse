@@ -3,7 +3,13 @@
 import { useEffect, useState, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import type { Session, Player, GameWithResults, PlayerNet, Settlement } from "@/lib/types";
+import type {
+  Session,
+  Player,
+  GameWithResults,
+  Settlement,
+  SessionPhotoWithPlayer,
+} from "@/lib/types";
 import {
   calculatePlayerNets,
   calculateSettlements,
@@ -20,6 +26,7 @@ import { AddGameDialog } from "@/components/add-game-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { SessionNotesDialog } from "@/components/session-notes-dialog";
 import { SettlementView } from "@/components/settlement-view";
+import { SessionPhotos } from "@/components/session-photos";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -34,13 +41,14 @@ export default function SessionPage({ params }: Props) {
   const [games, setGames] = useState<GameWithResults[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [photos, setPhotos] = useState<SessionPhotoWithPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [addGameOpen, setAddGameOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [sessionRes, gamesRes, playersRes, settlementsRes] =
+    const [sessionRes, gamesRes, playersRes, settlementsRes, photosRes] =
       await Promise.all([
         supabase.from("sessions").select("*").eq("id", id).single(),
         supabase
@@ -53,12 +61,19 @@ export default function SessionPage({ params }: Props) {
           .from("settlements")
           .select("*")
           .eq("session_id", id),
+        supabase
+          .from("session_photos")
+          .select("*, player:players(*)")
+          .eq("session_id", id)
+          .order("created_at", { ascending: true }),
       ]);
 
     if (sessionRes.data) setSession(sessionRes.data);
     if (gamesRes.data) setGames(gamesRes.data as unknown as GameWithResults[]);
     if (playersRes.data) setPlayers(playersRes.data);
     if (settlementsRes.data) setSettlements(settlementsRes.data);
+    if (photosRes.data)
+      setPhotos(photosRes.data as unknown as SessionPhotoWithPlayer[]);
     setLoading(false);
   }, [id]);
 
@@ -208,6 +223,9 @@ export default function SessionPage({ params }: Props) {
             <TabsTrigger value="settle" className="flex-1">
               Settle
             </TabsTrigger>
+            <TabsTrigger value="photos" className="flex-1">
+              Photos ({photos.length})
+            </TabsTrigger>
           </TabsList>
 
           {/* Summary Tab */}
@@ -355,6 +373,16 @@ export default function SessionPage({ params }: Props) {
               calculatedSettlements={calculatedSettlements}
               existingSettlements={settlements}
               onUpdate={loadData}
+            />
+          </TabsContent>
+
+          {/* Photos Tab */}
+          <TabsContent value="photos">
+            <SessionPhotos
+              sessionId={session.id}
+              players={players}
+              photos={photos}
+              onChanged={loadData}
             />
           </TabsContent>
         </Tabs>

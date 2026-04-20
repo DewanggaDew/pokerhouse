@@ -58,3 +58,19 @@ export type SettlementTransaction = {
   to: Player;
   amount: number;
 };
+
+export type SessionPhoto = {
+  id: string;
+  session_id: string;
+  player_id: string;
+  storage_path: string;
+  caption: string | null;
+  created_at: string;
+};
+
+export type SessionPhotoWithPlayer = SessionPhoto & {
+  player: Player;
+};
+
+export const MAX_PHOTOS_PER_PLAYER_PER_SESSION = 2;
+export const SESSION_PHOTOS_BUCKET = "session-photos";
