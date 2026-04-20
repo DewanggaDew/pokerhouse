@@ -110,43 +110,36 @@ export function AddGameDialog({
       : [];
 
   async function saveGame() {
+    if (saving) return;
     setSaving(true);
 
-    const { data: game, error: gameErr } = await supabase
-      .from("games")
-      .insert({
-        session_id: session.id,
-        game_number: gameCount + 1,
-      })
-      .select()
-      .single();
-
-    if (gameErr || !game) {
-      toast.error("Failed to create game");
-      setSaving(false);
-      return;
-    }
-
-    const results = payouts.map((p) => ({
-      game_id: game.id,
-      player_id: p.playerId,
-      result: p.result,
-      amount: p.amount,
-    }));
-
-    const { error: resultErr } = await supabase
-      .from("game_results")
-      .insert(results);
+    // The server assigns game_number atomically (see supabase/games.sql).
+    // Doing it this way avoids three bugs we used to hit:
+    //   - stale game_number after a deletion (client count was wrong)
+    //   - two devices racing on the same session both picking N+1
+    //   - a partial write leaving an orphan `games` row when the mobile
+    //     network dropped between the two inserts
+    const { data, error } = await supabase.rpc("insert_game_with_results", {
+      p_session_id: session.id,
+      p_results: payouts.map((p) => ({
+        player_id: p.playerId,
+        result: p.result,
+        amount: p.amount,
+      })),
+    });
 
     setSaving(false);
 
-    if (resultErr) {
-      await supabase.from("games").delete().eq("id", game.id);
-      toast.error("Failed to save game results");
+    if (error) {
+      const message =
+        error.message || error.details || "Failed to create game";
+      toast.error(message);
       return;
     }
 
-    toast.success(`Game ${gameCount + 1} recorded`);
+    const savedNumber =
+      (data as { game_number?: number } | null)?.game_number ?? gameCount + 1;
+    toast.success(`Game ${savedNumber} recorded`);
     reset();
     onAdded();
   }

@@ -68,10 +68,14 @@ export function UploadPhotoDialog({
 
   useEffect(() => {
     if (!open) return;
+    // Start with no player selected ("") so the placeholder is shown and the
+    // uploader has to consciously pick their own name. Only pre-fill when the
+    // caller explicitly passed a defaultPlayerId (e.g. the "+ Add" button on a
+    // specific player's row).
     setPlayerId(
       defaultPlayerId && eligiblePlayers.some((p) => p.id === defaultPlayerId)
         ? defaultPlayerId
-        : eligiblePlayers[0]?.id ?? ""
+        : ""
     );
     setFile(null);
     setCaption("");
@@ -145,8 +149,17 @@ export function UploadPhotoDialog({
                 value={playerId}
                 onValueChange={(v) => setPlayerId(v ?? "")}
               >
-                <SelectTrigger id="player">
-                  <SelectValue placeholder="Select a player" />
+                <SelectTrigger id="player" className="w-full">
+                  {/* Base UI's <Select.Value> falls back to stringifying the
+                      raw value when items aren't mounted, which would show
+                      the player's UUID. Resolve the name manually instead. */}
+                  <SelectValue placeholder="Select a player">
+                    {(value) => {
+                      if (!value) return "Select a player";
+                      const p = players.find((x) => x.id === value);
+                      return p ? p.name : "Select a player";
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {eligiblePlayers.map((p) => {

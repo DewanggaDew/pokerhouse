@@ -16,8 +16,9 @@ Open the SQL Editor in your Supabase dashboard and run:
 
 1. `supabase/schema.sql` — core tables (players, sessions, games, results, settlements)
 2. `supabase/photos.sql` — session photos table, upload limits, and the public storage bucket
+3. `supabase/games.sql` — atomic `insert_game_with_results` RPC that serializes concurrent "Add Game" calls and assigns `game_number` on the server
 
-Both files are idempotent and safe to re-run.
+All files are idempotent and safe to re-run.
 
 ### 3. Configure environment variables
 
