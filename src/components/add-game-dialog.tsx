@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { Session, Player } from "@/lib/types";
+import type { Session, Player, GameWithResults } from "@/lib/types";
 import { calculateGamePayouts } from "@/lib/calculations";
 import {
   Dialog,
@@ -28,6 +28,10 @@ type Props = {
   players: Player[];
   gameCount: number;
   onAdded: () => void;
+  // When provided, the dialog switches to "edit" mode: it pre-fills the
+  // selected players + losers from the existing game and calls the
+  // update_game_results RPC on save instead of insert_game_with_results.
+  editingGame?: GameWithResults | null;
 };
 
 type Step = "select-players" | "mark-losers" | "confirm";
@@ -39,7 +43,9 @@ export function AddGameDialog({
   players,
   gameCount,
   onAdded,
+  editingGame,
 }: Props) {
+  const isEditing = !!editingGame;
   const [step, setStep] = useState<Step>("select-players");
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(
     new Set()
@@ -52,6 +58,29 @@ export function AddGameDialog({
     setSelectedPlayerIds(new Set());
     setLoserIds(new Set());
   }
+
+  // Sync local state with the `editingGame` prop whenever the dialog opens.
+  // We key the effect on `open` + the game id so reopening the same dialog
+  // after a save reloads a fresh snapshot of the game's results (e.g. if
+  // another device edited it in the meantime).
+  useEffect(() => {
+    if (!open) return;
+    if (editingGame) {
+      setSelectedPlayerIds(
+        new Set(editingGame.game_results.map((r) => r.player_id))
+      );
+      setLoserIds(
+        new Set(
+          editingGame.game_results
+            .filter((r) => r.result === "loss")
+            .map((r) => r.player_id)
+        )
+      );
+      setStep("select-players");
+    } else {
+      reset();
+    }
+  }, [open, editingGame]);
 
   function handleOpenChange(open: boolean) {
     if (!open) reset();
@@ -113,33 +142,43 @@ export function AddGameDialog({
     if (saving) return;
     setSaving(true);
 
-    // The server assigns game_number atomically (see supabase/games.sql).
-    // Doing it this way avoids three bugs we used to hit:
-    //   - stale game_number after a deletion (client count was wrong)
-    //   - two devices racing on the same session both picking N+1
-    //   - a partial write leaving an orphan `games` row when the mobile
-    //     network dropped between the two inserts
-    const { data, error } = await supabase.rpc("insert_game_with_results", {
-      p_session_id: session.id,
-      p_results: payouts.map((p) => ({
-        player_id: p.playerId,
-        result: p.result,
-        amount: p.amount,
-      })),
-    });
+    const results = payouts.map((p) => ({
+      player_id: p.playerId,
+      result: p.result,
+      amount: p.amount,
+    }));
+
+    // Both RPCs live in supabase/games.sql and share the same per-session
+    // advisory lock, so concurrent add/edit operations on the same session
+    // serialize safely and we never leave an orphan or empty game row.
+    const { data, error } = editingGame
+      ? await supabase.rpc("update_game_results", {
+          p_game_id: editingGame.id,
+          p_results: results,
+        })
+      : await supabase.rpc("insert_game_with_results", {
+          p_session_id: session.id,
+          p_results: results,
+        });
 
     setSaving(false);
 
     if (error) {
       const message =
-        error.message || error.details || "Failed to create game";
+        error.message ||
+        error.details ||
+        (editingGame ? "Failed to update game" : "Failed to create game");
       toast.error(message);
       return;
     }
 
     const savedNumber =
-      (data as { game_number?: number } | null)?.game_number ?? gameCount + 1;
-    toast.success(`Game ${savedNumber} recorded`);
+      (data as { game_number?: number } | null)?.game_number ??
+      editingGame?.game_number ??
+      gameCount + 1;
+    toast.success(
+      editingGame ? `Game ${savedNumber} updated` : `Game ${savedNumber} recorded`
+    );
     reset();
     onAdded();
   }
@@ -149,7 +188,9 @@ export function AddGameDialog({
       <DialogContent className="max-w-sm max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Add Game {gameCount + 1}
+            {isEditing
+              ? `Edit Game ${editingGame!.game_number}`
+              : `Add Game ${gameCount + 1}`}
           </DialogTitle>
           <DialogDescription>
             {step === "select-players" && "Select who is playing this game"}
@@ -329,7 +370,11 @@ export function AddGameDialog({
                 disabled={saving}
                 className="flex-1"
               >
-                {saving ? "Saving..." : "Save Game"}
+                {saving
+                  ? "Saving..."
+                  : isEditing
+                    ? "Save Changes"
+                    : "Save Game"}
               </Button>
             </DialogFooter>
           </>

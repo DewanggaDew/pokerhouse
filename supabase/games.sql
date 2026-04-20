@@ -71,3 +71,70 @@ $$;
 -- Make the RPC callable from the browser (same permission model as the
 -- existing "Allow all" policies).
 grant execute on function insert_game_with_results(uuid, jsonb) to anon, authenticated;
+
+-- PokerHouse · Atomic game edit
+-- Replaces all game_results for a given game in a single transaction, under
+-- the same per-session advisory lock used by insert_game_with_results so that
+-- concurrent edits/adds on the same session serialize safely.
+--
+-- Prevents two failure modes:
+--   1. A delete-then-insert from the client drops results, then the network
+--      fails, leaving the game with zero results (silent data loss).
+--   2. Two devices editing the same game at once interleave their
+--      delete/insert and produce a partially-merged result set.
+create or replace function update_game_results(
+  p_game_id uuid,
+  p_results jsonb
+)
+returns jsonb
+language plpgsql
+as $$
+declare
+  v_session_id   uuid;
+  v_game_number  int;
+  v_result_cnt   int;
+begin
+  if p_game_id is null then
+    raise exception 'game_id is required' using errcode = 'check_violation';
+  end if;
+  if p_results is null or jsonb_typeof(p_results) <> 'array' then
+    raise exception 'results must be a JSON array' using errcode = 'check_violation';
+  end if;
+
+  select session_id, game_number
+    into v_session_id, v_game_number
+    from games
+   where id = p_game_id;
+
+  if v_session_id is null then
+    raise exception 'Game not found' using errcode = 'no_data_found';
+  end if;
+
+  -- Same lock key as insert_game_with_results so edits and adds on the same
+  -- session can't race with each other.
+  perform pg_advisory_xact_lock(hashtext(v_session_id::text));
+
+  delete from game_results where game_id = p_game_id;
+
+  insert into game_results (game_id, player_id, result, amount)
+  select p_game_id,
+         (r->>'player_id')::uuid,
+          r->>'result',
+         (r->>'amount')::numeric
+    from jsonb_array_elements(p_results) as r;
+
+  get diagnostics v_result_cnt = row_count;
+  if v_result_cnt = 0 then
+    raise exception 'At least one result is required'
+      using errcode = 'check_violation';
+  end if;
+
+  return jsonb_build_object(
+    'id',          p_game_id,
+    'session_id',  v_session_id,
+    'game_number', v_game_number
+  );
+end;
+$$;
+
+grant execute on function update_game_results(uuid, jsonb) to anon, authenticated;

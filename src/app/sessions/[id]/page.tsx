@@ -44,6 +44,7 @@ export default function SessionPage({ params }: Props) {
   const [photos, setPhotos] = useState<SessionPhotoWithPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [addGameOpen, setAddGameOpen] = useState(false);
+  const [editingGame, setEditingGame] = useState<GameWithResults | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
 
@@ -192,7 +193,14 @@ export default function SessionPage({ params }: Props) {
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2 mb-6">
           {session.status === "active" && (
-            <Button onClick={() => setAddGameOpen(true)}>Add Game</Button>
+            <Button
+              onClick={() => {
+                setEditingGame(null);
+                setAddGameOpen(true);
+              }}
+            >
+              Add Game
+            </Button>
           )}
           <Button variant="outline" onClick={() => setShareOpen(true)}>
             Share
@@ -311,17 +319,33 @@ export default function SessionPage({ params }: Props) {
                           Game {game.game_number}
                         </h3>
                         {session.status === "active" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            onClick={() => deleteGame(game.id)}
-                            aria-label="Delete game"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setEditingGame(game);
+                                setAddGameOpen(true);
+                              }}
+                              aria-label="Edit game"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L7.5 19.79l-4 1 1-4L16.862 4.487Z" />
+                              </svg>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              onClick={() => deleteGame(game.id)}
+                              aria-label="Delete game"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                              </svg>
+                            </Button>
+                          </div>
                         )}
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -390,12 +414,19 @@ export default function SessionPage({ params }: Props) {
 
       <AddGameDialog
         open={addGameOpen}
-        onOpenChange={setAddGameOpen}
+        onOpenChange={(open) => {
+          setAddGameOpen(open);
+          // Clear edit target once the dialog is closed so reopening via
+          // "Add Game" starts fresh instead of reusing the last edit state.
+          if (!open) setEditingGame(null);
+        }}
         session={session}
         players={players}
         gameCount={games.length}
+        editingGame={editingGame}
         onAdded={() => {
           setAddGameOpen(false);
+          setEditingGame(null);
           loadData();
         }}
       />
