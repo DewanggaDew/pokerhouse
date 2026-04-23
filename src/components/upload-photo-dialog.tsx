@@ -183,12 +183,14 @@ export function UploadPhotoDialog({
 
             <div className="space-y-2">
               <Label htmlFor="photo">Photo</Label>
+              {/* No `capture` attribute: on mobile the OS picker then lets the
+                  user choose between the gallery and the camera. Setting
+                  `capture` would force the camera and hide the gallery. */}
               <input
                 ref={fileInputRef}
                 id="photo"
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="flex w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium hover:file:bg-muted/80"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
