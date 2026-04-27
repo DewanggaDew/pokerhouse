@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LoadingScreen } from "@/components/loading-screen";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -41,6 +42,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh bg-background text-foreground font-sans antialiased">
         <ThemeProvider>
+          <LoadingScreen />
           {children}
         </ThemeProvider>
         <Toaster />
