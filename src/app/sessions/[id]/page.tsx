@@ -423,6 +423,9 @@ export default function SessionPage({ params }: Props) {
         session={session}
         players={players}
         gameCount={games.length}
+        lastGame={
+          games.length > 0 ? games[games.length - 1] : null
+        }
         editingGame={editingGame}
         onAdded={() => {
           setAddGameOpen(false);

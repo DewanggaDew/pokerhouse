@@ -32,6 +32,8 @@ type Props = {
   // selected players + losers from the existing game and calls the
   // update_game_results RPC on save instead of insert_game_with_results.
   editingGame?: GameWithResults | null;
+  /** Latest game in this session — used to offer “same lineup” when adding another game */
+  lastGame?: GameWithResults | null;
 };
 
 type Step = "select-players" | "mark-losers" | "confirm";
@@ -44,6 +46,7 @@ export function AddGameDialog({
   gameCount,
   onAdded,
   editingGame,
+  lastGame,
 }: Props) {
   const isEditing = !!editingGame;
   const [step, setStep] = useState<Step>("select-players");
@@ -110,6 +113,23 @@ export function AddGameDialog({
       toast.error("Select at least 2 players");
       return;
     }
+    setLoserIds(new Set());
+    setStep("mark-losers");
+  }
+
+  function applyLastGameLineupAndGoToLosers() {
+    if (!lastGame) return;
+    const rosterIds = new Set(players.map((p) => p.id));
+    const ids = lastGame.game_results
+      .map((r) => r.player_id)
+      .filter((id) => rosterIds.has(id));
+    if (ids.length < 2) {
+      toast.error(
+        "That lineup needs at least 2 players still on your roster. Pick players manually."
+      );
+      return;
+    }
+    setSelectedPlayerIds(new Set(ids));
     setLoserIds(new Set());
     setStep("mark-losers");
   }
@@ -208,6 +228,21 @@ export function AddGameDialog({
               </p>
             ) : (
               <div className="space-y-2 py-2">
+                {!isEditing && lastGame && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full h-auto py-3 flex flex-col gap-0.5"
+                    onClick={applyLastGameLineupAndGoToLosers}
+                  >
+                    <span className="font-medium">
+                      Same lineup as Game {lastGame.game_number}
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground leading-snug">
+                      Skip player selection — same group, mark losers next
+                    </span>
+                  </Button>
+                )}
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-muted-foreground">
                     {selectedPlayerIds.size} selected
