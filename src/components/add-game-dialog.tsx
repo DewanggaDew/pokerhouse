@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Session, Player, GameWithResults } from "@/lib/types";
 import { calculateGamePayouts } from "@/lib/calculations";
@@ -17,9 +17,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { formatRM } from "@/lib/calculations";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SearchIcon, XIcon } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -38,6 +40,45 @@ type Props = {
 
 type Step = "select-players" | "mark-losers" | "confirm";
 
+/** Split trailing "( … )" group label when present (e.g. duplicate first names). */
+function splitPlayerLabel(fullName: string): { primary: string; subtitle?: string } {
+  const m = fullName.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (!m) return { primary: fullName };
+  const primary = m[1]?.trim() ?? "";
+  const subtitle = m[2]?.trim();
+  return primary.length > 0 ? { primary, subtitle } : { primary: fullName };
+}
+
+function initialsFromPrimary(primary: string): string {
+  const parts = primary.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2)
+    return `${parts[0]![0] ?? ""}${parts[parts.length - 1]![0] ?? ""}`.toUpperCase();
+  return (parts[0] ?? "?").slice(0, 2).toUpperCase();
+}
+
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  const trimmed = query.trim();
+  if (!trimmed) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(trimmed.toLowerCase());
+  if (idx < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="rounded-xs bg-primary/20 px-0.5 text-inherit dark:bg-primary/35">
+        {text.slice(idx, idx + trimmed.length)}
+      </mark>
+      {text.slice(idx + trimmed.length)}
+    </>
+  );
+}
+
+function playerMatchesQuery(player: Player, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  const { primary, subtitle } = splitPlayerLabel(player.name);
+  return `${primary} ${subtitle ?? ""} ${player.name}`.toLowerCase().includes(needle);
+}
+
 export function AddGameDialog({
   open,
   onOpenChange,
@@ -55,11 +96,15 @@ export function AddGameDialog({
   );
   const [loserIds, setLoserIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [playerSearchQuery, setPlayerSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
 
   function reset() {
     setStep("select-players");
     setSelectedPlayerIds(new Set());
     setLoserIds(new Set());
+    setPlayerSearchQuery("");
   }
 
   // Sync local state with the `editingGame` prop whenever the dialog opens.
@@ -68,22 +113,32 @@ export function AddGameDialog({
   // another device edited it in the meantime).
   useEffect(() => {
     if (!open) return;
-    if (editingGame) {
-      setSelectedPlayerIds(
-        new Set(editingGame.game_results.map((r) => r.player_id))
-      );
-      setLoserIds(
-        new Set(
-          editingGame.game_results
-            .filter((r) => r.result === "loss")
-            .map((r) => r.player_id)
-        )
-      );
-      setStep("select-players");
-    } else {
-      reset();
-    }
+    queueMicrotask(() => {
+      if (editingGame) {
+        setSelectedPlayerIds(
+          new Set(editingGame.game_results.map((r) => r.player_id))
+        );
+        setLoserIds(
+          new Set(
+            editingGame.game_results
+              .filter((r) => r.result === "loss")
+              .map((r) => r.player_id)
+          )
+        );
+        setStep("select-players");
+      } else {
+        reset();
+      }
+    });
   }, [open, editingGame]);
+
+  useEffect(() => {
+    if (!open || step !== "select-players" || players.length === 0) return;
+    const t = window.setTimeout(() => {
+      searchInputRef.current?.focus({ preventScroll: true });
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, [open, step, players.length]);
 
   function handleOpenChange(open: boolean) {
     if (!open) reset();
@@ -158,6 +213,70 @@ export function AddGameDialog({
         )
       : [];
 
+  const lastGameRosterIds = useMemo(() => {
+    if (!lastGame) return new Set<string>();
+    return new Set(lastGame.game_results.map((r) => r.player_id));
+  }, [lastGame]);
+
+  const sortedPlayers = useMemo(
+    () =>
+      [...players].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+      ),
+    [players]
+  );
+
+  const filteredPlayers = useMemo(
+    () => sortedPlayers.filter((p) => playerMatchesQuery(p, playerSearchQuery)),
+    [sortedPlayers, playerSearchQuery]
+  );
+
+  const hasActiveFilter = playerSearchQuery.trim().length > 0;
+
+  const allFilteredSelected = useMemo(() => {
+    if (filteredPlayers.length === 0) return false;
+    return filteredPlayers.every((p) => selectedPlayerIds.has(p.id));
+  }, [filteredPlayers, selectedPlayerIds]);
+
+  const selectedPlayersOrdered = useMemo(
+    () =>
+      [...players]
+        .filter((p) => selectedPlayerIds.has(p.id))
+        .sort((a, b) =>
+          a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+        ),
+    [players, selectedPlayerIds]
+  );
+
+  function toggleSelectAllScope() {
+    const scopeIds = hasActiveFilter
+      ? filteredPlayers.map((p) => p.id)
+      : players.map((p) => p.id);
+    if (scopeIds.length === 0) return;
+
+    const allScopeSelected = scopeIds.every((id) =>
+      selectedPlayerIds.has(id)
+    );
+
+    setSelectedPlayerIds((prev) => {
+      const next = new Set(prev);
+      if (allScopeSelected) {
+        scopeIds.forEach((id) => next.delete(id));
+      } else {
+        scopeIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  const bulkSelectLabel = hasActiveFilter
+    ? allFilteredSelected
+      ? `Deselect shown (${filteredPlayers.length})`
+      : `Select visible (${filteredPlayers.length})`
+    : selectedPlayerIds.size === players.length
+      ? "Deselect All"
+      : "Select All";
+
   async function saveGame() {
     if (saving) return;
     setSaving(true);
@@ -203,9 +322,18 @@ export function AddGameDialog({
     onAdded();
   }
 
+  const rosterSelectLayout = step === "select-players" && players.length > 0;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-sm max-h-[85dvh] overflow-y-auto">
+      <DialogContent
+        className={cn(
+          "max-w-sm max-h-[85dvh]",
+          rosterSelectLayout
+            ? "flex flex-col gap-3 overflow-hidden p-4"
+            : "overflow-y-auto gap-4"
+        )}
+      >
         <DialogHeader>
           <DialogTitle>
             {isEditing
@@ -223,71 +351,214 @@ export function AddGameDialog({
         {step === "select-players" && (
           <>
             {players.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No players in roster. Add players first.
-              </p>
+              <>
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  No players in roster. Add players first.
+                </p>
+                <DialogFooter className="shrink-0">
+                  <Button
+                    onClick={goToMarkLosers}
+                    disabled
+                    className="w-full"
+                  >
+                    Next — Mark Losers
+                  </Button>
+                </DialogFooter>
+              </>
             ) : (
-              <div className="space-y-2 py-2">
-                {!isEditing && lastGame && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full h-auto py-3 flex flex-col gap-0.5"
-                    onClick={applyLastGameLineupAndGoToLosers}
-                  >
-                    <span className="font-medium">
-                      Same lineup as Game {lastGame.game_number}
-                    </span>
-                    <span className="text-xs font-normal text-muted-foreground leading-snug">
-                      Skip player selection — same group, mark losers next
-                    </span>
-                  </Button>
-                )}
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">
-                    {selectedPlayerIds.size} selected
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (selectedPlayerIds.size === players.length) {
-                        setSelectedPlayerIds(new Set());
-                      } else {
-                        setSelectedPlayerIds(
-                          new Set(players.map((p) => p.id))
+              <>
+                {/* No flex-1 here: a growing middle column left a tall empty band
+                    inside the scroll viewport above the footer. Cap list height instead. */}
+                <div className="flex min-h-0 flex-col gap-0 overflow-hidden">
+                  <div className="shrink-0 space-y-3 pb-2 pr-2">
+                    {!isEditing && lastGame && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="flex h-auto w-full flex-col gap-0.5 py-3"
+                        onClick={applyLastGameLineupAndGoToLosers}
+                      >
+                        <span className="font-medium">
+                          Same lineup as Game {lastGame.game_number}
+                        </span>
+                        <span className="text-xs font-normal text-muted-foreground leading-snug">
+                          Skip player selection — same group, mark losers next
+                        </span>
+                      </Button>
+                    )}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="player-search" className="sr-only">
+                        Search players by name
+                      </Label>
+                      <div className="relative">
+                        <SearchIcon
+                          className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                          aria-hidden
+                        />
+                        <Input
+                          ref={searchInputRef}
+                          id="player-search"
+                          type="search"
+                          enterKeyHint="search"
+                          autoComplete="off"
+                          spellCheck={false}
+                          placeholder="Search name…"
+                          value={playerSearchQuery}
+                          onChange={(e) => setPlayerSearchQuery(e.target.value)}
+                          className="h-10 pl-9 pr-9 text-base md:text-sm"
+                        />
+                        {playerSearchQuery.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="absolute right-0.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            aria-label="Clear search"
+                            onClick={() => {
+                              setPlayerSearchQuery("");
+                              searchInputRef.current?.focus();
+                            }}
+                          >
+                            <XIcon className="size-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex items-start justify-between gap-2 pt-1">
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <span className="text-sm text-muted-foreground">
+                            {selectedPlayerIds.size} selected
+                          </span>
+                          {hasActiveFilter && (
+                            <span className="text-xs text-muted-foreground">
+                              Showing {filteredPlayers.length} of {players.length}
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0"
+                          disabled={hasActiveFilter && filteredPlayers.length === 0}
+                          onClick={toggleSelectAllScope}
+                        >
+                          {bulkSelectLabel}
+                        </Button>
+                      </div>
+                    </div>
+                    {selectedPlayersOrdered.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground">
+                          Selected — tap × to remove
+                        </p>
+                        <div className="flex max-h-19 flex-wrap gap-1.5 overflow-y-auto pr-0.5">
+                          {selectedPlayersOrdered.map((p) => {
+                            const { primary } = splitPlayerLabel(p.name);
+                            return (
+                              <Badge
+                                key={p.id}
+                                variant="secondary"
+                                className="h-7 gap-1 pr-1 pl-2 font-normal"
+                              >
+                                <span className="max-w-36 truncate">
+                                  {primary}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="rounded-sm p-0.5 text-muted-foreground hover:bg-background/80 hover:text-foreground"
+                                  aria-label={`Remove ${primary}`}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    togglePlayer(p.id);
+                                  }}
+                                >
+                                  <XIcon className="size-3.5" />
+                                </button>
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="max-h-[min(55dvh,calc(85dvh-15rem))] min-h-0 space-y-2 overflow-y-auto py-1 pr-1">
+                    {filteredPlayers.length === 0 ? (
+                      <p className="px-1 py-8 text-center text-sm text-muted-foreground">
+                        {hasActiveFilter ? (
+                          <>
+                            No names match &ldquo;{playerSearchQuery.trim()}
+                            &rdquo;. Try another spelling or clear search.
+                          </>
+                        ) : (
+                          "No players to show."
+                        )}
+                      </p>
+                    ) : (
+                      filteredPlayers.map((player) => {
+                        const { primary, subtitle } = splitPlayerLabel(
+                          player.name
                         );
-                      }
-                    }}
-                  >
-                    {selectedPlayerIds.size === players.length
-                      ? "Deselect All"
-                      : "Select All"}
-                  </Button>
+                        const inLastGame =
+                          !isEditing && lastGameRosterIds.has(player.id);
+                        return (
+                          <label
+                            key={player.id}
+                            className="flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted"
+                          >
+                            <Checkbox
+                              checked={selectedPlayerIds.has(player.id)}
+                              onCheckedChange={() => togglePlayer(player.id)}
+                            />
+                            <div
+                              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
+                              aria-hidden
+                            >
+                              {initialsFromPrimary(primary)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium leading-tight">
+                                <HighlightMatch
+                                  text={primary}
+                                  query={playerSearchQuery}
+                                />
+                              </div>
+                              {(subtitle || inLastGame) && (
+                                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                                  {subtitle && (
+                                    <span>
+                                      <HighlightMatch
+                                        text={subtitle}
+                                        query={playerSearchQuery}
+                                      />
+                                    </span>
+                                  )}
+                                  {inLastGame && (
+                                    <Badge
+                                      variant="outline"
+                                      className="h-5 border-dashed px-1.5 text-[10px] font-normal"
+                                    >
+                                      Last game
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-                {players.map((player) => (
-                  <label
-                    key={player.id}
-                    className="flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors"
+                <DialogFooter className="shrink-0">
+                  <Button
+                    onClick={goToMarkLosers}
+                    disabled={selectedPlayerIds.size < 2}
+                    className="w-full"
                   >
-                    <Checkbox
-                      checked={selectedPlayerIds.has(player.id)}
-                      onCheckedChange={() => togglePlayer(player.id)}
-                    />
-                    <span className="text-sm font-medium">{player.name}</span>
-                  </label>
-                ))}
-              </div>
+                    Next — Mark Losers
+                  </Button>
+                </DialogFooter>
+              </>
             )}
-            <DialogFooter>
-              <Button
-                onClick={goToMarkLosers}
-                disabled={selectedPlayerIds.size < 2}
-                className="w-full"
-              >
-                Next — Mark Losers
-              </Button>
-            </DialogFooter>
           </>
         )}
 
