@@ -6,6 +6,7 @@ import { MAX_PHOTOS_PER_PLAYER_PER_SESSION } from "@/lib/types";
 import { deleteSessionPhoto, getPhotoPublicUrl } from "@/lib/photos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { UploadPhotoDialog } from "@/components/upload-photo-dialog";
 import { toast } from "sonner";
 
@@ -27,6 +28,8 @@ export function SessionPhotos({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [defaultPlayerId, setDefaultPlayerId] = useState<string | undefined>();
   const [lightbox, setLightbox] = useState<SessionPhotoWithPlayer | null>(null);
+  const [photoToDelete, setPhotoToDelete] =
+    useState<SessionPhotoWithPlayer | null>(null);
 
   const grouped = useMemo(() => {
     const byPlayer = new Map<string, SessionPhotoWithPlayer[]>();
@@ -52,9 +55,12 @@ export function SessionPhotos({
       MAX_PHOTOS_PER_PLAYER_PER_SESSION
   );
 
-  async function handleDelete(photo: SessionPhotoWithPlayer) {
+  async function confirmDeletePhoto() {
+    if (!photoToDelete) return;
+    const target = photoToDelete;
+    setPhotoToDelete(null);
     try {
-      await deleteSessionPhoto(photo);
+      await deleteSessionPhoto(target);
       toast.success("Photo removed");
       onChanged?.();
     } catch {
@@ -131,7 +137,7 @@ export function SessionPhotos({
                       key={photo.id}
                       photo={photo}
                       onOpen={() => setLightbox(photo)}
-                      onDelete={readOnly ? undefined : () => handleDelete(photo)}
+                      onDelete={readOnly ? undefined : () => setPhotoToDelete(photo)}
                     />
                   ))}
                 </div>
@@ -159,6 +165,15 @@ export function SessionPhotos({
       {lightbox && (
         <Lightbox photo={lightbox} onClose={() => setLightbox(null)} />
       )}
+
+      <DeleteConfirmDialog
+        open={photoToDelete !== null}
+        onOpenChange={(open) => { if (!open) setPhotoToDelete(null); }}
+        title="Delete this photo?"
+        description="The image will be removed from this session and deleted from storage. This cannot be undone."
+        confirmLabel="Delete photo"
+        onConfirm={() => void confirmDeletePhoto()}
+      />
     </div>
   );
 }

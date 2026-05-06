@@ -27,6 +27,7 @@ import { ShareDialog } from "@/components/share-dialog";
 import { SessionNotesDialog } from "@/components/session-notes-dialog";
 import { SettlementView } from "@/components/settlement-view";
 import { SessionPhotos } from "@/components/session-photos";
+import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,10 @@ export default function SessionPage({ params }: Props) {
   const [editingGame, setEditingGame] = useState<GameWithResults | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [sessionDeleteOpen, setSessionDeleteOpen] = useState(false);
+  const [gameToDelete, setGameToDelete] = useState<GameWithResults | null>(
+    null
+  );
 
   const loadData = useCallback(async () => {
     const [sessionRes, gamesRes, playersRes, settlementsRes, photosRes] =
@@ -214,7 +219,7 @@ export default function SessionPage({ params }: Props) {
           <Button
             variant="outline"
             className="text-destructive hover:text-destructive"
-            onClick={deleteSession}
+            onClick={() => setSessionDeleteOpen(true)}
           >
             Delete
           </Button>
@@ -338,7 +343,7 @@ export default function SessionPage({ params }: Props) {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                              onClick={() => deleteGame(game.id)}
+                              onClick={() => setGameToDelete(game)}
                               aria-label="Delete game"
                             >
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -447,6 +452,32 @@ export default function SessionPage({ params }: Props) {
         onSaved={(notes) => {
           setSession({ ...session, notes });
           setNotesOpen(false);
+        }}
+      />
+
+      <DeleteConfirmDialog
+        open={sessionDeleteOpen}
+        onOpenChange={setSessionDeleteOpen}
+        title="Delete this session?"
+        description={`This permanently deletes "${session.name}", including all games, settlements, and photos. This cannot be undone.`}
+        confirmLabel="Delete session"
+        onConfirm={() => {
+          setSessionDeleteOpen(false);
+          void deleteSession();
+        }}
+      />
+
+      <DeleteConfirmDialog
+        open={gameToDelete !== null}
+        onOpenChange={(open) => { if (!open) setGameToDelete(null); }}
+        title="Delete this game?"
+        description={`Game ${gameToDelete?.game_number ?? ""} will be removed from this session. This cannot be undone.`}
+        confirmLabel="Delete game"
+        onConfirm={() => {
+          if (!gameToDelete) return;
+          const id = gameToDelete.id;
+          setGameToDelete(null);
+          void deleteGame(id);
         }}
       />
     </div>

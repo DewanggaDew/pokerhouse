@@ -7,6 +7,7 @@ import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { toast } from "sonner";
 
 export default function PlayersPage() {
@@ -16,6 +17,7 @@ export default function PlayersPage() {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
 
   useEffect(() => {
     loadPlayers();
@@ -189,7 +191,7 @@ export default function PlayersPage() {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                          onClick={() => deletePlayer(player)}
+                          onClick={() => setPlayerToDelete(player)}
                           aria-label={`Delete ${player.name}`}
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -208,6 +210,20 @@ export default function PlayersPage() {
           </div>
         )}
       </main>
+
+      <DeleteConfirmDialog
+        open={playerToDelete !== null}
+        onOpenChange={(open) => { if (!open) setPlayerToDelete(null); }}
+        title="Remove player?"
+        description={playerToDelete ? `Remove "${playerToDelete.name}" from your roster? Players with game history cannot be deleted — you'll see an error in that case.` : ""}
+        confirmLabel="Remove"
+        onConfirm={() => {
+          if (!playerToDelete) return;
+          const p = playerToDelete;
+          setPlayerToDelete(null);
+          void deletePlayer(p);
+        }}
+      />
     </div>
   );
 }
