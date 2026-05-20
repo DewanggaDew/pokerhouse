@@ -46,7 +46,7 @@ export default function FeedPage() {
   return (
     <div className="min-h-dvh flex flex-col">
       <Header />
-      <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
+      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Feed</h1>
           <p className="text-sm text-muted-foreground">
@@ -55,11 +55,11 @@ export default function FeedPage() {
         </div>
 
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-4 lg:columns-2 lg:gap-4 lg:space-y-0 xl:columns-3">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-80 rounded-lg bg-muted animate-pulse"
+                className="h-80 rounded-lg bg-muted animate-pulse lg:mb-4 lg:break-inside-avoid"
               />
             ))}
           </div>
@@ -72,21 +72,25 @@ export default function FeedPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {photos.map((photo) => (
-              <FeedItem key={photo.id} photo={photo} />
-            ))}
+          <>
+            <div className="space-y-4 lg:columns-2 lg:gap-4 lg:space-y-0 xl:columns-3">
+              {photos.map((photo) => (
+                <div key={photo.id} className="lg:mb-4 lg:break-inside-avoid">
+                  <FeedItem photo={photo} />
+                </div>
+              ))}
+            </div>
             {hasMore && (
               <button
                 type="button"
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="w-full rounded-md border py-3 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                className="mt-4 w-full rounded-md border py-3 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
               >
                 {loadingMore ? "Loading..." : "Load more"}
               </button>
             )}
-          </div>
+          </>
         )}
       </main>
     </div>

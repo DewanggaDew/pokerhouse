@@ -132,10 +132,10 @@ export default function PlayersPage() {
   return (
     <div className="min-h-dvh flex flex-col">
       <Header />
-      <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
+      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
         <h1 className="text-2xl font-bold tracking-tight mb-6">Players</h1>
 
-        <form onSubmit={addPlayer} className="flex gap-2 mb-6">
+        <form onSubmit={addPlayer} className="flex gap-2 mb-6 lg:max-w-md">
           <Input
             placeholder="Player name"
             value={newName}
@@ -148,7 +148,7 @@ export default function PlayersPage() {
         </form>
 
         {loading ? (
-          <div className="space-y-2">
+          <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 xl:grid-cols-3">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />
             ))}
@@ -162,7 +162,7 @@ export default function PlayersPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 xl:grid-cols-3">
             {players.map((player) => (
               <Card key={player.id}>
                 <CardContent className="flex items-center justify-between py-3">
@@ -250,10 +250,12 @@ export default function PlayersPage() {
                 </CardContent>
               </Card>
             ))}
-            <p className="text-xs text-muted-foreground text-center pt-2">
-              {players.length} player{players.length !== 1 && "s"}
-            </p>
           </div>
+        )}
+        {!loading && players.length > 0 && (
+          <p className="text-xs text-muted-foreground text-center pt-4">
+            {players.length} player{players.length !== 1 && "s"}
+          </p>
         )}
       </main>
 

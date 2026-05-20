@@ -136,7 +136,7 @@ export default function SessionPage({ params }: Props) {
     return (
       <div className="min-h-dvh flex flex-col">
         <Header />
-        <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
+        <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
           <div className="space-y-4">
             <div className="h-8 w-48 bg-muted animate-pulse rounded" />
             <div className="h-20 bg-muted animate-pulse rounded-lg" />
@@ -165,68 +165,72 @@ export default function SessionPage({ params }: Props) {
   return (
     <div className="min-h-dvh flex flex-col">
       <Header />
-      <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
-        {/* Session Header */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {session.name}
-            </h1>
-            <Badge
-              variant={session.status === "active" ? "default" : "secondary"}
-            >
-              {session.status}
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {new Date(session.date + "T00:00:00").toLocaleDateString("en-MY", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-            {" · "}
-            Buy-in {formatRMAmount(session.buy_in)}
-          </p>
-          {session.notes && (
-            <p className="text-sm text-muted-foreground mt-1 italic">
-              {session.notes}
+      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
+        {/* Session Header + Actions */}
+        <div className="mb-6 lg:flex lg:items-start lg:justify-between lg:gap-6">
+          <div className="mb-6 lg:mb-0 lg:min-w-0 lg:flex-1">
+            <div className="flex items-start justify-between gap-2 mb-1 lg:justify-start">
+              <h1 className="text-2xl font-bold tracking-tight">
+                {session.name}
+              </h1>
+              <Badge
+                variant={session.status === "active" ? "default" : "secondary"}
+              >
+                {session.status}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {new Date(session.date + "T00:00:00").toLocaleDateString(
+                "en-MY",
+                {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                }
+              )}
+              {" · "}
+              Buy-in {formatRMAmount(session.buy_in)}
             </p>
-          )}
-        </div>
+            {session.notes && (
+              <p className="text-sm text-muted-foreground mt-1 italic">
+                {session.notes}
+              </p>
+            )}
+          </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {session.status === "active" && (
-            <Button
-              onClick={() => {
-                setEditingGame(null);
-                setAddGameOpen(true);
-              }}
-            >
-              Add Game
+          <div className="flex flex-wrap gap-2 lg:shrink-0 lg:justify-end">
+            {session.status === "active" && (
+              <Button
+                onClick={() => {
+                  setEditingGame(null);
+                  setAddGameOpen(true);
+                }}
+              >
+                Add Game
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShareOpen(true)}>
+              Share
             </Button>
-          )}
-          <Button variant="outline" onClick={() => setShareOpen(true)}>
-            Share
-          </Button>
-          <Button variant="outline" onClick={() => setNotesOpen(true)}>
-            Notes
-          </Button>
-          <Button variant="outline" onClick={toggleStatus}>
-            {session.status === "active" ? "Complete" : "Reopen"}
-          </Button>
-          <Button
-            variant="outline"
-            className="text-destructive hover:text-destructive"
-            onClick={() => setSessionDeleteOpen(true)}
-          >
-            Delete
-          </Button>
+            <Button variant="outline" onClick={() => setNotesOpen(true)}>
+              Notes
+            </Button>
+            <Button variant="outline" onClick={toggleStatus}>
+              {session.status === "active" ? "Complete" : "Reopen"}
+            </Button>
+            <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setSessionDeleteOpen(true)}
+            >
+              Delete
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="summary" className="space-y-4">
-          <TabsList className="w-full">
+          <TabsList className="w-full lg:max-w-2xl">
             <TabsTrigger value="summary" className="flex-1">
               Summary
             </TabsTrigger>
@@ -301,7 +305,7 @@ export default function SessionPage({ params }: Props) {
           </TabsContent>
 
           {/* Games Tab */}
-          <TabsContent value="games" className="space-y-3">
+          <TabsContent value="games">
             {games.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
@@ -309,7 +313,8 @@ export default function SessionPage({ params }: Props) {
                 </CardContent>
               </Card>
             ) : (
-              games.map((game) => {
+              <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+              {games.map((game) => {
                 const winners = game.game_results.filter(
                   (r) => r.result === "win"
                 );
@@ -390,7 +395,8 @@ export default function SessionPage({ params }: Props) {
                     </CardContent>
                   </Card>
                 );
-              })
+              })}
+              </div>
             )}
           </TabsContent>
 

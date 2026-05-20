@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 const navItems = [
   { href: "/", label: "Sessions" },
@@ -17,7 +17,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex h-14 max-w-lg items-center gap-2 px-3 sm:px-4">
+      <div className="mx-auto flex h-14 max-w-lg lg:max-w-7xl items-center gap-2 px-3 sm:px-4 lg:px-8">
         <Link
           href="/"
           className="shrink-0 font-semibold tracking-tight text-base sm:text-lg"
@@ -39,7 +39,7 @@ export function Header() {
               {item.label}
             </Link>
           ))}
-          <ThemeToggle />
+          <AnimatedThemeToggler />
         </nav>
       </div>
     </header>

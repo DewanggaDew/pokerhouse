@@ -134,7 +134,7 @@ export default function PlayerDetailPage({ params }: Props) {
     return (
       <div className="min-h-dvh flex flex-col">
         <Header />
-        <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
+        <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
           <div className="space-y-4">
             <div className="h-8 w-48 bg-muted animate-pulse rounded" />
             <div className="h-24 bg-muted animate-pulse rounded-lg" />
@@ -149,7 +149,7 @@ export default function PlayerDetailPage({ params }: Props) {
     return (
       <div className="min-h-dvh flex flex-col">
         <Header />
-        <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
+        <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
           <Card>
             <CardContent className="py-12 text-center space-y-3">
               <p className="text-muted-foreground">Player not found.</p>
@@ -166,7 +166,7 @@ export default function PlayerDetailPage({ params }: Props) {
   return (
     <div className="min-h-dvh flex flex-col">
       <Header />
-      <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
+      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
         <Link
           href="/players"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
@@ -210,7 +210,7 @@ export default function PlayerDetailPage({ params }: Props) {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Performance</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
+              <CardContent className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 <StatBlock
                   label="Winrate"
                   value={`${summary.winrate.toFixed(1)}%`}
@@ -248,6 +248,13 @@ export default function PlayerDetailPage({ params }: Props) {
               </CardContent>
             </Card>
 
+            <div
+              className={cn(
+                "space-y-6",
+                headToHead.length > 0 &&
+                  "lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 lg:items-start"
+              )}
+            >
             {/* Head to head */}
             {headToHead.length > 0 && (
               <Card>
@@ -346,6 +353,7 @@ export default function PlayerDetailPage({ params }: Props) {
                 ))}
               </CardContent>
             </Card>
+            </div>
           </div>
         )}
       </main>

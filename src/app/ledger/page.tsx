@@ -154,7 +154,7 @@ export default function LedgerPage() {
     return (
       <div className="min-h-dvh flex flex-col">
         <Header />
-        <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
+        <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
           <div className="space-y-4">
             <div className="h-8 w-48 bg-muted animate-pulse rounded" />
             <div className="h-32 bg-muted animate-pulse rounded-lg" />
@@ -168,7 +168,7 @@ export default function LedgerPage() {
   return (
     <div className="min-h-dvh flex flex-col">
       <Header />
-      <main className="flex-1 mx-auto w-full max-w-lg px-4 py-6">
+      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
         <h1 className="text-2xl font-bold tracking-tight mb-1">Ledger</h1>
         <p className="text-sm text-muted-foreground mb-6">
           Unsettled balances across all sessions
@@ -183,7 +183,8 @@ export default function LedgerPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 lg:items-start">
+            <div className="space-y-6">
             {/* Unsettled Balances */}
             <Card>
               <CardHeader className="pb-3">
@@ -264,6 +265,8 @@ export default function LedgerPage() {
               </Card>
             )}
 
+            </div>
+            <div className="space-y-6">
             {/* Lifetime Stats */}
             <Card>
               <CardHeader className="pb-3">
@@ -374,6 +377,7 @@ export default function LedgerPage() {
                 })}
               </>
             )}
+            </div>
           </div>
         )}
       </main>
