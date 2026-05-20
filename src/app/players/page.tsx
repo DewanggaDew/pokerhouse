@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { Player } from "@/lib/types";
 import { Header } from "@/components/header";
@@ -17,6 +18,7 @@ export default function PlayersPage() {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
 
   useEffect(() => {
@@ -69,6 +71,12 @@ export default function PlayersPage() {
     const trimmed = editName.trim();
     if (!trimmed) return;
 
+    const original = players.find((p) => p.id === id);
+    if (original && original.name === trimmed) {
+      setEditingId(null);
+      return;
+    }
+
     if (
       players.some(
         (p) => p.id !== id && p.name.toLowerCase() === trimmed.toLowerCase()
@@ -78,10 +86,12 @@ export default function PlayersPage() {
       return;
     }
 
+    setSavingEdit(true);
     const { error } = await supabase
       .from("players")
       .update({ name: trimmed })
       .eq("id", id);
+    setSavingEdit(false);
 
     if (error) {
       toast.error("Failed to rename player");
@@ -89,7 +99,13 @@ export default function PlayersPage() {
     }
 
     setEditingId(null);
+    toast.success("Player renamed");
     loadPlayers();
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditName("");
   }
 
   async function deletePlayer(player: Player) {
@@ -163,16 +179,46 @@ export default function PlayersPage() {
                         onChange={(e) => setEditName(e.target.value)}
                         className="flex-1 h-9"
                         autoFocus
-                        onBlur={() => setEditingId(null)}
+                        disabled={savingEdit}
                         onKeyDown={(e) => {
-                          if (e.key === "Escape") setEditingId(null);
+                          if (e.key === "Escape") cancelEdit();
                         }}
                       />
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 shrink-0 text-primary"
+                        disabled={savingEdit || !editName.trim()}
+                        aria-label="Save name"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 shrink-0 text-muted-foreground"
+                        disabled={savingEdit}
+                        onClick={cancelEdit}
+                        aria-label="Cancel rename"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </Button>
                     </form>
                   ) : (
                     <>
-                      <span className="font-medium">{player.name}</span>
-                      <div className="flex items-center gap-1">
+                      <Link
+                        href={`/players/${player.id}`}
+                        className="font-medium flex-1 min-w-0 truncate hover:underline"
+                      >
+                        {player.name}
+                      </Link>
+                      <div className="flex items-center gap-1 shrink-0">
                         <Button
                           variant="ghost"
                           size="sm"
