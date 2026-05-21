@@ -134,7 +134,7 @@ export function SessionClient({
     <>
       <div className="mb-6 lg:flex lg:items-start lg:justify-between lg:gap-6">
         <div className="mb-6 lg:mb-0 lg:min-w-0 lg:flex-1">
-          <div className="flex items-start justify-between gap-2 mb-1 lg:justify-start">
+          <div className="flex items-center justify-between gap-2 mb-1 lg:justify-start">
             <h1 className="text-2xl font-bold tracking-tight">
               {session.name}
             </h1>
