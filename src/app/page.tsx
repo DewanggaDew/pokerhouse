@@ -1,43 +1,22 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
-import { supabase } from "@/lib/supabase";
+import Link from "next/link";
+import { createServerSupabase } from "@/lib/supabase-server";
 import type { Session } from "@/lib/types";
 import { Header } from "@/components/header";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatRMAmount } from "@/lib/calculations";
+import { NewSessionButton } from "./new-session-button";
 
-const CreateSessionDialog = dynamic(
-  () =>
-    import("@/components/create-session-dialog").then(
-      (m) => m.CreateSessionDialog
-    ),
-  { ssr: false }
-);
+export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const router = useRouter();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+export default async function HomePage() {
+  const supabase = createServerSupabase();
+  const { data } = await supabase
+    .from("sessions")
+    .select("*")
+    .order("date", { ascending: false });
 
-  useEffect(() => {
-    loadSessions();
-  }, []);
-
-  async function loadSessions() {
-    const { data } = await supabase
-      .from("sessions")
-      .select("*")
-      .order("date", { ascending: false });
-    setSessions(data ?? []);
-    setLoading(false);
-  }
-
+  const sessions: Session[] = data ?? [];
   const activeSessions = sessions.filter((s) => s.status === "active");
   const pastSessions = sessions.filter((s) => s.status !== "active");
 
@@ -47,22 +26,14 @@ export default function HomePage() {
       <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Sessions</h1>
-          <Button onClick={() => setDialogOpen(true)}>New Session</Button>
+          <NewSessionButton />
         </div>
 
-        {loading ? (
-          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
-            ))}
-          </div>
-        ) : sessions.length === 0 ? (
+        {sessions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground mb-4">No sessions yet</p>
-              <Button onClick={() => setDialogOpen(true)}>
-                Create your first session
-              </Button>
+              <NewSessionButton variant="inline" />
             </CardContent>
           </Card>
         ) : (
@@ -74,11 +45,7 @@ export default function HomePage() {
                 </h2>
                 <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
                   {activeSessions.map((session) => (
-                    <SessionCard
-                      key={session.id}
-                      session={session}
-                      onClick={() => router.push(`/sessions/${session.id}`)}
-                    />
+                    <SessionCard key={session.id} session={session} />
                   ))}
                 </div>
               </section>
@@ -93,11 +60,7 @@ export default function HomePage() {
                 )}
                 <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:grid-cols-3">
                   {pastSessions.map((session) => (
-                    <SessionCard
-                      key={session.id}
-                      session={session}
-                      onClick={() => router.push(`/sessions/${session.id}`)}
-                    />
+                    <SessionCard key={session.id} session={session} />
                   ))}
                 </div>
               </section>
@@ -105,67 +68,51 @@ export default function HomePage() {
           </div>
         )}
       </main>
-
-      <CreateSessionDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onCreated={(session) => {
-          setDialogOpen(false);
-          router.push(`/sessions/${session.id}`);
-        }}
-      />
     </div>
   );
 }
 
-function SessionCard({
-  session,
-  onClick,
-}: {
-  session: Session;
-  onClick: () => void;
-}) {
+function SessionCard({ session }: { session: Session }) {
   return (
-    <Card
-      className="cursor-pointer transition-colors hover:bg-muted/50 active:bg-muted h-full"
-      onClick={onClick}
-    >
-      <CardContent className="flex items-center justify-between py-4 h-full">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="font-semibold truncate">{session.name}</h2>
-            <Badge
-              variant={session.status === "active" ? "default" : "secondary"}
-              className="shrink-0 text-xs"
-            >
-              {session.status}
-            </Badge>
+    <Link href={`/sessions/${session.id}`} className="block">
+      <Card className="cursor-pointer transition-colors hover:bg-muted/50 active:bg-muted h-full">
+        <CardContent className="flex items-center justify-between py-4 h-full">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="font-semibold truncate">{session.name}</h2>
+              <Badge
+                variant={session.status === "active" ? "default" : "secondary"}
+                className="shrink-0 text-xs"
+              >
+                {session.status}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {new Date(session.date + "T00:00:00").toLocaleDateString("en-MY", {
+                weekday: "short",
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+              {" · "}
+              Buy-in {formatRMAmount(session.buy_in)}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {new Date(session.date + "T00:00:00").toLocaleDateString("en-MY", {
-              weekday: "short",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
-            {" · "}
-            Buy-in {formatRMAmount(session.buy_in)}
-          </p>
-        </div>
-        <svg
-          className="h-5 w-5 text-muted-foreground shrink-0 ml-2"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="m9 18 6-6-6-6"
-          />
-        </svg>
-      </CardContent>
-    </Card>
+          <svg
+            className="h-5 w-5 text-muted-foreground shrink-0 ml-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m9 18 6-6-6-6"
+            />
+          </svg>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
