@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
 import type {
   Session,
@@ -22,14 +23,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AddGameDialog } from "@/components/add-game-dialog";
-import { ShareDialog } from "@/components/share-dialog";
-import { SessionNotesDialog } from "@/components/session-notes-dialog";
 import { SettlementView } from "@/components/settlement-view";
 import { SessionPhotos } from "@/components/session-photos";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+const AddGameDialog = dynamic(
+  () => import("@/components/add-game-dialog").then((m) => m.AddGameDialog),
+  { ssr: false }
+);
+const ShareDialog = dynamic(
+  () => import("@/components/share-dialog").then((m) => m.ShareDialog),
+  { ssr: false }
+);
+const SessionNotesDialog = dynamic(
+  () =>
+    import("@/components/session-notes-dialog").then(
+      (m) => m.SessionNotesDialog
+    ),
+  { ssr: false }
+);
+const DeleteConfirmDialog = dynamic(
+  () =>
+    import("@/components/delete-confirm-dialog").then(
+      (m) => m.DeleteConfirmDialog
+    ),
+  { ssr: false }
+);
 
 type Props = {
   params: Promise<{ id: string }>;

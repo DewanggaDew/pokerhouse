@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import type { SessionPhotoWithPlayer, Session } from "@/lib/types";
 import { getPhotoPublicUrl } from "@/lib/photos";
@@ -124,13 +125,15 @@ function FeedItem({ photo }: { photo: FeedPhoto }) {
           {formatRelative(photo.created_at)}
         </time>
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={url}
-        alt={photo.caption ?? "Session photo"}
-        loading="lazy"
-        className="w-full max-h-[75vh] object-cover bg-muted"
-      />
+      <div className="relative w-full bg-muted aspect-square max-h-[75vh]">
+        <Image
+          src={url}
+          alt={photo.caption ?? "Session photo"}
+          fill
+          sizes="(min-width: 1280px) 33vw, (min-width: 1024px) 50vw, 100vw"
+          className="object-cover"
+        />
+      </div>
       {photo.caption && (
         <CardContent className="py-3">
           <p className="text-sm">

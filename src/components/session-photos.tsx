@@ -1,14 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
+import dynamic from "next/dynamic";
 import type { Player, SessionPhotoWithPlayer } from "@/lib/types";
 import { MAX_PHOTOS_PER_PLAYER_PER_SESSION } from "@/lib/types";
 import { deleteSessionPhoto, getPhotoPublicUrl } from "@/lib/photos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { UploadPhotoDialog } from "@/components/upload-photo-dialog";
 import { toast } from "sonner";
+
+const DeleteConfirmDialog = dynamic(
+  () =>
+    import("@/components/delete-confirm-dialog").then(
+      (m) => m.DeleteConfirmDialog
+    ),
+  { ssr: false }
+);
+const UploadPhotoDialog = dynamic(
+  () =>
+    import("@/components/upload-photo-dialog").then((m) => m.UploadPhotoDialog),
+  { ssr: false }
+);
 
 type Props = {
   sessionId: string;
@@ -193,15 +206,15 @@ function PhotoTile({
       <button
         type="button"
         onClick={onOpen}
-        className="block w-full aspect-square"
+        className="block w-full aspect-square relative"
         aria-label="Open photo"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={url}
           alt={photo.caption ?? "Session photo"}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]"
+          fill
+          sizes="(min-width: 1024px) 25vw, 50vw"
+          className="object-cover transition-transform group-hover:scale-[1.02]"
         />
       </button>
       {photo.caption && (
@@ -262,13 +275,20 @@ function Lightbox({
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
         </svg>
       </button>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={url}
-        alt={photo.caption ?? "Session photo"}
-        className="max-h-full max-w-full rounded-md object-contain"
+      <div
+        className="relative flex h-full w-full items-center justify-center"
         onClick={(e) => e.stopPropagation()}
-      />
+      >
+        <Image
+          src={url}
+          alt={photo.caption ?? "Session photo"}
+          width={1600}
+          height={1600}
+          sizes="100vw"
+          className="max-h-full max-w-full rounded-md object-contain h-auto w-auto"
+          priority
+        />
+      </div>
       <div
         className="absolute inset-x-0 bottom-0 space-y-0.5 bg-gradient-to-t from-black/80 to-transparent p-4 text-center text-white"
         onClick={(e) => e.stopPropagation()}

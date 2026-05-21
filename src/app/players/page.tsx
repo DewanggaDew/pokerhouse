@@ -2,14 +2,22 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
 import type { Player } from "@/lib/types";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { toast } from "sonner";
+
+const DeleteConfirmDialog = dynamic(
+  () =>
+    import("@/components/delete-confirm-dialog").then(
+      (m) => m.DeleteConfirmDialog
+    ),
+  { ssr: false }
+);
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);

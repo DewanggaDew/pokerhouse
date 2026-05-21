@@ -2,14 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@/lib/types";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CreateSessionDialog } from "@/components/create-session-dialog";
 import { formatRMAmount } from "@/lib/calculations";
+
+const CreateSessionDialog = dynamic(
+  () =>
+    import("@/components/create-session-dialog").then(
+      (m) => m.CreateSessionDialog
+    ),
+  { ssr: false }
+);
 
 export default function HomePage() {
   const router = useRouter();
