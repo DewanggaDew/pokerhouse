@@ -14,6 +14,7 @@ import {
   formatRMAmount,
 } from "@/lib/calculations";
 import { Header } from "@/components/header";
+import { autoCompleteStaleSessions } from "@/lib/auto-complete";
 import { SessionClient } from "./session-client";
 
 type Props = {
@@ -24,6 +25,7 @@ export const dynamic = "force-dynamic";
 
 async function loadSession(id: string) {
   const supabase = createServerSupabase();
+  await autoCompleteStaleSessions(supabase);
   const [sessionRes, gamesRes, playersRes, settlementsRes, photosRes] =
     await Promise.all([
       supabase.from("sessions").select("*").eq("id", id).maybeSingle(),

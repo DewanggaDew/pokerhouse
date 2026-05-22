@@ -5,12 +5,14 @@ import { Header } from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatRMAmount } from "@/lib/calculations";
+import { autoCompleteStaleSessions } from "@/lib/auto-complete";
 import { NewSessionButton } from "./new-session-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const supabase = createServerSupabase();
+  await autoCompleteStaleSessions(supabase);
   const { data } = await supabase
     .from("sessions")
     .select("*")
