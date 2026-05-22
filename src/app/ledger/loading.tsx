@@ -7,19 +7,13 @@ export default function Loading() {
   return (
     <div className="min-h-dvh flex flex-col">
       <Header />
-      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
+      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-2xl px-4 lg:px-8 py-6">
         <Skeleton className="h-8 w-24 mb-1" />
         <Skeleton className="h-4 w-56 mb-6" />
 
-        <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 lg:items-start">
-          <div className="space-y-6">
-            <ListCardSkeleton rows={4} />
-            <ListCardSkeleton rows={3} />
-          </div>
-          <div className="space-y-6">
-            <ListCardSkeleton rows={5} />
-          </div>
-        </div>
+        <Skeleton className="h-8 w-full lg:max-w-2xl mb-6 rounded-lg" />
+
+        <ListCardSkeleton rows={5} />
       </main>
     </div>
   );

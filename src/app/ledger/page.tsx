@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { LedgerSections } from "./ledger-tabs";
+import { parseLedgerView } from "./ledger-view";
 
 type SessionWithGames = {
   session: Session;
@@ -122,7 +124,14 @@ function computeOverallStats(
     .sort((a, b) => b.unsettledNet - a.unsettledNet);
 }
 
-export default async function LedgerPage() {
+export default async function LedgerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view: viewParam } = await searchParams;
+  const initialView = parseLedgerView(viewParam);
+
   const { players, sessionsData } = await loadLedger();
 
   const unsettledSessions = sessionsData.filter((sd) => {
@@ -145,13 +154,17 @@ export default async function LedgerPage() {
       }))
   );
 
+  const outstandingStats = overallStats
+    .filter((s) => Math.abs(s.unsettledNet) > 0.01)
+    .sort((a, b) => b.unsettledNet - a.unsettledNet);
+
   return (
     <div className="min-h-dvh flex flex-col">
       <Header />
-      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-7xl px-4 lg:px-8 py-6">
+      <main className="flex-1 mx-auto w-full max-w-lg lg:max-w-2xl px-4 lg:px-8 py-6">
         <h1 className="text-2xl font-bold tracking-tight mb-1">Ledger</h1>
         <p className="text-sm text-muted-foreground mb-6">
-          Unsettled balances across all sessions
+          Stats, balances, and payments across sessions
         </p>
 
         {overallStats.length === 0 ? (
@@ -163,88 +176,10 @@ export default async function LedgerPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 lg:items-start">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">
-                    Outstanding Balances
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-0">
-                  {overallStats
-                    .filter((s) => Math.abs(s.unsettledNet) > 0.01)
-                    .sort((a, b) => b.unsettledNet - a.unsettledNet)
-                    .map((stat, i) => (
-                      <div key={stat.player.id}>
-                        {i > 0 && <Separator />}
-                        <div className="flex items-center justify-between py-3">
-                          <div>
-                            <p className="font-medium">{stat.player.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {stat.unsettledNet > 0 ? "is owed" : "owes"}
-                            </p>
-                          </div>
-                          <span
-                            className={cn(
-                              "font-mono font-semibold tabular-nums",
-                              stat.unsettledNet > 0
-                                ? "text-foreground"
-                                : "text-destructive"
-                            )}
-                          >
-                            {formatRM(stat.unsettledNet)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  {overallStats.every(
-                    (s) => Math.abs(s.unsettledNet) < 0.01
-                  ) && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      All settled up!
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {overallSettlements.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Who Pays Whom</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {overallSettlements.map((s, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 text-sm py-1"
-                      >
-                        <span className="font-medium">{s.from.name}</span>
-                        <svg
-                          className="h-4 w-4 text-muted-foreground shrink-0"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
-                          />
-                        </svg>
-                        <span className="font-medium">{s.to.name}</span>
-                        <span className="font-mono tabular-nums ml-auto">
-                          {formatRMAmount(s.amount)}
-                        </span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            <div className="space-y-6">
+          <LedgerSections
+            initialView={initialView}
+            unsettledCount={unsettledSessions.length}
+            lifetime={
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Lifetime Stats</CardTitle>
@@ -278,13 +213,99 @@ export default async function LedgerPage() {
                   ))}
                 </CardContent>
               </Card>
-
-              {unsettledSessions.length > 0 && (
-                <>
-                  <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Unsettled Sessions
-                  </h2>
-                  {unsettledSessions.map((sd) => {
+            }
+            balances={
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">
+                    Outstanding Balances
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-0">
+                  {outstandingStats.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      All settled up!
+                    </p>
+                  ) : (
+                    outstandingStats.map((stat, i) => (
+                      <div key={stat.player.id}>
+                        {i > 0 && <Separator />}
+                        <div className="flex items-center justify-between py-3">
+                          <div>
+                            <p className="font-medium">{stat.player.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {stat.unsettledNet > 0 ? "is owed" : "owes"}
+                            </p>
+                          </div>
+                          <span
+                            className={cn(
+                              "font-mono font-semibold tabular-nums",
+                              stat.unsettledNet > 0
+                                ? "text-foreground"
+                                : "text-destructive"
+                            )}
+                          >
+                            {formatRM(stat.unsettledNet)}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            }
+            payments={
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Who Pays Whom</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {overallSettlements.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No outstanding payments.
+                    </p>
+                  ) : (
+                    overallSettlements.map((s, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 text-sm py-1"
+                      >
+                        <span className="font-medium">{s.from.name}</span>
+                        <svg
+                          className="h-4 w-4 text-muted-foreground shrink-0"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={2}
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+                          />
+                        </svg>
+                        <span className="font-medium">{s.to.name}</span>
+                        <span className="font-mono tabular-nums ml-auto">
+                          {formatRMAmount(s.amount)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            }
+            unsettled={
+              <div className="space-y-4">
+                {unsettledSessions.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <p className="text-muted-foreground">
+                        No unsettled sessions.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  unsettledSessions.map((sd) => {
                     const playerNets = calculatePlayerNets(sd.games, players);
                     const unsettledCount =
                       sd.settlements.length === 0
@@ -350,11 +371,11 @@ export default async function LedgerPage() {
                         </Card>
                       </Link>
                     );
-                  })}
-                </>
-              )}
-            </div>
-          </div>
+                  })
+                )}
+              </div>
+            }
+          />
         )}
       </main>
     </div>
